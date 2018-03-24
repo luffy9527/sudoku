@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style type="text/css">
+        div {
+
+            float : left;
+
+        }
+
+        .title {
+            color : red;
+        }
+
+        .board {
+            width: 560px;
+            height: 560px;
+            margin: 20px auto;
+            border: 5px solid yellowgreen;
+        }
+
+        .row {
+            height: 60px;
+            width: 100%;
+        }
+
+        .row div {
+            width: 60px;
+            height: 60px;
+            border: 1px solid orange;
+            float: left;
+            font-size:5px;
+        }
+
+    </style>
+</head>
+
+<body>
+<div>
+    <p align="center" class="title" onclick="run()">Sudoku</p>
+
+</div>
+<br/>
+<div class="frame">
+
+    <div class="board" id="board">
+    </div>
+    <div><p id="msg"></p></div>
+</div>
+<script type="text/javascript">
+
+    var matrix = [
+        [0, 0, 0, 0, 0, 8, 0, 3, 1,],
+        [0, 0, 0, 1, 7, 4, 0, 0, 0,],
+        [8, 2, 0, 6, 0, 0, 0, 0, 0,],
+        [0, 0, 0, 9, 0, 0, 0, 0, 6,],
+        [0, 0, 3, 0, 4, 0, 0, 1, 0,],
+        [0, 0, 0, 0, 6, 0, 2, 4, 0,],
+        [0, 6, 9, 0, 5, 0, 0, 0, 0,],
+        [0, 5, 0, 0, 9, 0, 3, 0, 0,],
+        [7, 0, 0, 0, 0, 2, 0, 0, 0,],
+    ];
+
+    var originMatrix = [
+        [0, 0, 0, 0, 0, 8, 0, 3, 1,],
+        [0, 0, 0, 1, 7, 4, 0, 0, 0,],
+        [8, 2, 0, 6, 0, 0, 0, 0, 0,],
+        [0, 0, 0, 9, 0, 0, 0, 0, 6,],
+        [0, 0, 3, 0, 4, 0, 0, 1, 0,],
+        [0, 0, 0, 0, 6, 0, 2, 4, 0,],
+        [0, 6, 9, 0, 5, 0, 0, 0, 0,],
+        [0, 5, 0, 0, 9, 0, 3, 0, 0,],
+        [7, 0, 0, 0, 0, 2, 0, 0, 0,],
+    ];
+
+    var possible = [
+        [511, 511, 511, 511, 511, 511, 511, 511, 511,],
+        [511, 511, 511, 511, 511, 511, 511, 511, 511,],
+        [511, 511, 511, 511, 511, 511, 511, 511, 511,],
+        [511, 511, 511, 511, 511, 511, 511, 511, 511,],
+        [511, 511, 511, 511, 511, 511, 511, 511, 511,],
+        [511, 511, 511, 511, 511, 511, 511, 511, 511,],
+        [511, 511, 511, 511, 511, 511, 511, 511, 511,],
+        [511, 511, 511, 511, 511, 511, 511, 511, 511,],
+        [511, 511, 511, 511, 511, 511, 511, 511, 511,],
+    ];
+    var colorMatrx = [
+        ["#00f3f3", "#f30033", "#f3f300"],
+        ["#539393", "#00f300", "#00f3f3"],
+        ["#f3f300", "#00f3f3", "#f300f3"],
+    ];
+
+    var hintInfo = '';
+    var hintInfoNum = 1;
+    var succeed = false;
+    var board = document.getElementById("board");
+
+    for (var i = 0; i < matrix.length; i++) {
+        var row = document.createElement("div");
+        var cls = document.createAttribute("class");
+        cls.nodeValue = "row";
+        row.attributes.setNamedItem(cls);
+
+        for (var j = 0; j < matrix[i].length; j++) {
+            var node = document.createElement("div");
+            var id = document.createAttribute("id");
+            id.nodeValue = (i * matrix.length + j).toString();
+            node.attributes.setNamedItem(id);
+
+            row.appendChild(node);
+        }
+
+        board.appendChild(row);
+    }
+
+    //document.write(board.hasChildNodes());
+
+    function displayBoard() {
+        for (var i = 0; i < matrix.length; i++) {
+            for (var j = 0; j < matrix[i].length; j++) {
+                var node = document.getElementById(i*matrix.length + j);
+
+                if (matrix[i][j] == 0) {
+                    node.innerHTML = toString(possible[i][j]);
+                    //displayMsg("xxxxx[" + i + "][" + j + "]: " + value(possible[i][j]) + " string; " + toString(possible[i][j]));
+                } else {
+                    node.innerHTML = matrix[i][j];
+
+                }
+
+                node.align = "center";
+                if (originMatrix[i][j] != 0) {
+                    node.style.color = "#0000ff";
+                }
+                {
+                    node.style.background = colorMatrx[Math.floor(i/3)][Math.floor(j/3)];
+                }
+
+            }
+        }
+    }
+
+    function Cell(i, j, value) {
+        this.i = i;
+        this.j = j;
+        this.value = value;
+        this.test  = test;
+        this.add = add;
+        this.remove = remove;
+        this.unique = unique;
+        this.value = value;
+    }
+    function test(s, i) {
+        return  (s & (1 << (i - 1)));
+    }
+
+    function add(s, i) {
+
+        if (test(s, i)) return s;
+        var s = s | (1 << (i - 1));
+        return s;
+    }
+
+    function remove(s, i) {
+        if (!test(s, i)) return s;
+        var s = s ^ (1 << (i - 1));
+        return s;
+    }
+
+    function unique(s) {
+        return (s & (s - 1)) == 0;
+    }
+
+    function size(s) {
+        return toString(s).length;
+    }
+
+    function value(s) {
+        if (!unique(s)) return 0;
+
+        for (var i = 1; i <= 9; i++) {
+            if (s & (1 << (i - 1))) return i;
+        }
+        return 0;
+    }
+
+    function toString(s) {
+
+        var result = "";
+        for (var i = 1; i <= 9; i++) {
+            if (s & (1 << (i - 1))) result += i;
+        }
+
+        return result;
+    }
+
+    function displayMsg(msg) {
+        var debuginfo = document.getElementById('msg').innerHTML ;
+        debuginfo = "<br/>["+ hintInfoNum + "] " + msg + debuginfo;
+        hintInfoNum++;
+        document.getElementById('msg').innerHTML = debuginfo;
+    }
+
+
+
+    function updateforOneCellSet(i, j) {
+        // row
+        for (var k = 0; k < matrix.length; k++) {
+            if (matrix[i][k] == 0) {
+                possible[i][k] = remove(possible[i][k], matrix[i][j]);
+            }
+
+        }
+        // column
+        for (var k = 0; k < matrix.length; k++) {
+            if (matrix[k][j] == 0) {
+                possible[k][j] = remove(possible[k][j], matrix[i][j]);
+            }
+        }
+
+        // 9-cells
+        var r = Math.floor(i / 3) * 3;
+        var c = Math.floor(j / 3) * 3;
+
+        for (var ii = r; ii < r + 3; ii++) {
+            for (var jj = c; jj < c + 3; jj++) {
+                if (matrix[ii][jj] == 0) {
+                    possible[ii][jj] = remove(possible[ii][jj], matrix[i][j]);
+                }
+            }
+        }
+
+    }
+
+
+    function search(list) {
+        if (list.length <= 2) return false;
+
+        for (var k = list.length - 1; k >= 2; k--) {
+            var t = 0;
+            var cnt = 0;
+            var sublist = [];
+            for (var i = 0; i < list.length; i++) {
+                if (k == size(list[i][2])) {
+                    t = list[i][2];
+                    cnt = 1;
+                    sublist = [];
+                    sublist.push(list[i]);
+
+                    for (var j = 0; j < list.length; j++) {
+                        if (i == j) continue;
+                        if (t == (t | list[j][2])) {
+                            cnt++;
+                            sublist.push(list[j]);
+
+                            if (cnt == k) {
+                                displayMsg("[DEBUG] list " + list + "<br/> has sublist " + sublist);
+                                return sublist;
+                            }
+                        }
+                    }
+
+                }
+            }
+        }
+
+
+        return [];
+
+    };
+
+
+
+    function setOneCell(i, j, n) {
+        matrix[i][j] = n;
+        possible[i][j] = 0;
+        updateAllbyOneSpecified(i, j);
+
+        if (checkIfSucceed()){
+            displayMsg("Succeed")
+            return;            
+        }
+    }
+
+    function updateAllbyOneSpecified(i, j) {
+        // row
+        for (var k = 0; k < matrix.length; k++) {
+            if (k == j) continue;
+            if (matrix[i][k] != 0) continue;
+            possible[i][k] = remove(possible[i][k], matrix[i][j]);
+        }
+        // column
+        for (var k = 0; k < matrix.length; k++) {
+            if (k == i) continue;
+            if (matrix[k][j] != 0) continue;
+            possible[k][j] = remove(possible[k][j], matrix[i][j]);
+        }
+        // 9-cells
+        var r = Math.floor(i / 3) * 3;
+        var c = Math.floor(j / 3) * 3;
+
+        for (var ii = r; ii < r + 3; ii++) {
+            for (var jj = c; jj < c + 3; jj++) {
+                if (matrix[ii][jj] == 0) {
+                    possible[ii][jj] = remove(possible[ii][jj], matrix[i][j]);
+                }
+            }
+        }
+    }
+
+    // 根据已经确定的单元格的内容，刷新其他未确定单元格中的可能范围，如果可能范围中只有1个数字有可能，那就可以确认该单元格
+    function rule1_updatePossibleBySpecifiedCell() {
+        for (var i = 0; i < matrix.length; i++) {
+            for (var j = 0; j < matrix.length; j++) {
+                if (matrix[i][j] != 0) {
+                    continue;
+                }
+
+                // row
+                for (var k = 0; k < matrix.length; k++) {
+                    if (matrix[i][k] != 0) {
+                        possible[i][j] = remove(possible[i][j], matrix[i][k]);
+                    }
+                }
+                // column
+                for (var k = 0; k < matrix.length; k++) {
+                    if (matrix[k][j] != 0) {
+                        possible[i][j] = remove(possible[i][j], matrix[k][j]);
+                    }
+                }
+
+                // 9-cells
+                var r = Math.floor(i / 3) * 3;
+                var c = Math.floor(j / 3) * 3;
+
+                for (var ii = r; ii < r + 3; ii++) {
+                    for (var jj = c; jj < c + 3; jj++) {
+                        if (matrix[ii][jj] != 0) {
+                            possible[i][j] = remove(possible[i][j], matrix[ii][jj]);
+                        }
+                    }
+                }
+
+                //if (i == 0 && j == 4)
+                //    displayMsg("hahahahh after " + i + " " + j + " "+ unique(possible[i][j]));
+
+                if (unique(possible[i][j])) {
+
+                    setOneCell(i, j, value(possible[i][j]));
+
+                    displayMsg("Cell 1 [" + i + "][" + j + "]: " + matrix[i][j] + " succeed: " + succeed);
+
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    // 如果某个取值只出现在每行/列/9方格的唯一一个单元格的可能列表中时，该取值即为该单元格的取值
+    function rule2_updatePossibleByUnique() {
+        var list = [];
+        for (var i = 0; i < matrix.length; i++) {
+            for (var j = 0; j < matrix.length; j++) {
+                if (matrix[i][j] != 0) continue;
+
+                for (var k = 1; k <= 9; k++) {
+                    if (!test(possible[i][j], k)) continue;
+                    var isUnique = false;
+                    // 1.行内唯一
+                    var temp = 1 << (k - 1);
+                    var cnt = 0;
+                    for (var l = 0; l < matrix.length; l++) {
+                        if (l == j) continue;
+                        if (matrix[i][l] != 0) continue;
+                        if (temp & possible[i][l]) cnt++;
+                    }
+
+                    if (cnt == 0) {
+                        isUnique = true;
+                    }
+
+                    // 2.列内唯一
+                    if (!isUnique) {
+                        temp = 1 << (k - 1);
+                        cnt = 0;
+                        for (var l = 0; l < matrix.length; l++) {
+                            if (l == i) continue;
+                            if (matrix[l][j] != 0) continue;
+                            if (temp & possible[l][j]) cnt++;
+                        }
+
+                        if (cnt == 0) {
+                            isUnique = true;
+                        }
+                    }
+
+                    // 3.9方格内唯一
+                    if (!isUnique)
+                    {
+                        temp = 1 << (k - 1);
+                        cnt = 0;
+                        var r = Math.floor(i/3) * 3;
+                        var c = Math.floor(j/3) * 3;
+                        for (var ii = r; ii < r + 3; ii++) {
+                            for (var jj = c; jj < c + 3; jj++) {
+                                if ((ii == i) && (jj == j)) continue;
+                                if (matrix[ii][jj] != 0) continue;
+
+                                if (temp & possible[ii][jj]) cnt++;
+                            }
+                        }
+
+                        if (cnt == 0) {
+                            isUnique = true;
+                        }
+                    }
+
+                    //displayMsg("end - "+ p + "**** " + found);
+                    if (isUnique) {
+
+                        setOneCell(i, j, k);
+
+                        displayMsg("Cell 2 [" + i + "][" + j + "]: " + matrix[i][j] + " succeed: " + succeed);
+
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    //
+    // 正向分析，一行或一列中，如果存在N个未确定单元格可能的序列为：a1,a2,...,an的子集，那么可以确定这N个单元格必然为该序列。
+    function rule3_updatePossibleBySubList() {
+        var sublist = [];
+        // 1.每行中有N个单元格
+        for (var i = 0; i < matrix.length; i++) {
+            var list = [];
+            for (var j = 0; j < matrix.length; j++) {
+                if (matrix[i][j] == 0) list.push([i, j, possible[i][j]]);
+            }
+
+            sublist = search(list);
+            if (sublist.length > 0) {
+                var temp = 0;
+                for (var k = 0; k < sublist.length; k++) {
+                    temp |= sublist[k][2];
+                }
+                for (var j = 0; j < matrix.length; j++) {
+                    var flag = true;
+                    for (var k = 0; k < sublist.length; k++) {
+                        if (sublist[k][1] == j) {
+                            flag = false;
+                            break;
+                        }
+                    }
+                    if (flag)
+                    {
+                        possible[i][j] &= (~temp);
+                    }
+                }
+
+                return true;
+            }
+        }
+        
+        if (succeed) return true;
+
+        // 2.每列中有N个单元格
+        for (var j = 0; j < matrix.length; j++) {
+            list = [];
+            for (var i = 0; i < matrix.length; i++) {
+                if (matrix[i][j] == 0) list.push([i, j, possible[i][j]]);
+            }
+
+            sublist = search(list);
+            if (sublist.length > 0) {
+                return true;
+            }
+        }
+if (succeed) return true;
+        // 3.每9方格中
+        for (var i = 0; i < 3; i++) {
+            for (var j = 0; j < 3; j++) {
+
+                list = [];
+                for (var ii = 3*i; ii < 3*ii+3; ii++) {
+                    for (var jj = 3*j; jj < 3*jj+3; jj++) {
+                        if (matrix[i][j] == 0)  plist.push([i, j, list[ii][jj]]);
+                    }
+                }
+
+                sublist = search(list);
+                if (sublist.length > 0) {
+                    return true;
+                }
+
+            }
+        }
+
+        return false;
+
+    }
+
+    /*
+     通过Impossible列表反推Possible：Possible列表大小为1时，标识推算成功
+     针对每个未确定的单元格:
+     1.通过扫描所在行和列中已确定的单元格取值，生成impossible列表；JudgeByImpossible
+     2.通过扫描单元格所归属的9方格中已确定的单元格取值，生成impossible列表；
+     3.推算规则：
+     3.1 {1,2,...9} - impossible列表 = possible列表；如果possible列表大小只有1，那么就可以确定该单元格取值。
+     3.2 如果某个取值只出现在每行/列/9方格的唯一一个单元格的可能列表中时，该取值即为该单元格的取值   judgeByPossibleUnique
+     3.3 行/列/9方格中，如果存在N个未确定单元格可能的序列为：a1,a2,...,an的子集，那么可以确定这N个单元格必然为该序列。
+     */
+    function calculate() {
+        if (checkIfSucceed()){
+            displayMsg("Succeed")
+            return;            
+        }
+
+        if (!rule1_updatePossibleBySpecifiedCell())
+        {
+            checkIfSucceed();
+            
+            if (succeed) return;
+
+            if (!rule2_updatePossibleByUnique()) {
+                checkIfSucceed();
+            
+                if (succeed) return;
+
+                rule3_updatePossibleBySubList();
+            }
+        }
+
+        /*if (!JudgeByImpossible())
+        {
+            if (!judgeByPossibleUnique())
+                judgeByPossibleComb();
+        }*/
+
+    }
+
+    function run() {
+        // calculate
+        calculate();
+
+        // display
+        displayBoard();
+    }
+
+    function checkIfSucceed() {
+        for (var i = 0; i < matrix.length; i++) {
+            var t = 0;
+            for (var j = 0; j < matrix.length; j++) {
+                t |= (1 << (matrix[i][j] - 1));
+            }
+
+            if (t != 511) {
+                return false;
+            }            
+        }
+
+        for (var i = 0; i < matrix.length; i++) {
+            var t = 0;
+            for (var j = 0; j < matrix.length; j++) {
+                t |= (1 << (matrix[j][i] - 1));
+            }
+
+            if (t != 511) {
+                return false;
+            }            
+        }
+
+        for (var i = 0; i < 3; i++) {
+            for (var j = 0; j < 3; j++) {
+                var t = 0;
+                for (var ii = 3*i; ii < 3*ii+3; ii++) {
+                    for (var jj = 3*j; jj < 3*jj+3; jj++) {
+                        t |= (1 << (matrix[ii][jj] - 1));
+                    }
+                }
+
+                if (t != 511) {
+                    return false;
+                }   
+            }
+        }
+        
+        succeed = true;
+        return true;
+    }
+    displayBoard();
+
+    setInterval(run, 1000);
+
+</script>
+</body>
+</html>
